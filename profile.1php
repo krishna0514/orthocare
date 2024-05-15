@@ -1,0 +1,54 @@
+<?php
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type");
+header('Content-Type: application/json');
+
+require "dbh.php"; // Connect to the database
+
+// Get the raw POST data as a string
+$json_data = file_get_contents("php://input");
+
+// Decode the JSON data into an associative array
+$request_data = json_decode($json_data, true); 
+
+// Check if 'patientId' key exists in $request_data
+if (isset($request_data['patientId'])) {
+    // Get the patientId from the decoded JSON data
+    $patientId = $request_data['patientId'];
+
+    // Query to fetch patient profile using prepared statements
+    $sql_select = "SELECT `id`, `patientId`, `name`, `contactNo`, `age`, `gender`, `height`, `weight`, `patientCase`, `admittedOn`, `image` FROM `patients3` WHERE patientId = :patientId";
+    $stmt_select = $conn->prepare($sql_select); 
+    $stmt_select->bindParam(':patientId', $patientId, PDO::PARAM_STR);
+    $stmt_select->execute();
+
+    // Check if patient profile is found
+    if ($stmt_select->rowCount() > 0) {
+        // Fetch the patient profile
+        $patient_profile = $stmt_select->fetch(PDO::FETCH_ASSOC);
+
+        // Prepare the response with the patient profile
+        $response['status'] = "success";
+        $response['message'] = "Patient profile found";
+        $response['profile'] = $patient_profile;
+    } else {
+        // Prepare the response for patient profile not found
+        $response['status'] = "error";
+        $response['message'] = "Patient profile not found";
+    }
+
+    // Close the prepared statement
+    $stmt_select->closeCursor();
+} else {
+    // Handle the case where 'patientId' is missing
+    $response['status'] = "error";
+    $response['message'] = "Invalid request data";
+}
+
+// Close the database connection
+$conn = null;
+
+// Respond with JSON
+echo json_encode($response);
+?>
